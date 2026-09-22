@@ -1,8 +1,13 @@
 name: Deploy synthetic study Pages
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  push:
+    paths:
+      - app.js
+      - catalog.js
+      - index.html
+      - styles.css
+      - .github/workflows/deploy-pages.yml
 permissions:
   contents: read
   pages: write
@@ -18,9 +23,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify audited SHA-256 before publish
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib, sys
+          expected = {
+            "app.js": "abf77afda2580e05b295eaa8ca3e092307c325abe4d41fbc4df07375c2c8c805",
+            "catalog.js": "b8417deb2caf3abe074aa0c50c8cf0ed28436ce44277f54038947404ed7df7a1",
+            "index.html": "99b4942fc3770c99db6ec7457b15278b278f508180014ce94b42a772acb96256",
+            "styles.css": "0fa1b63b171620ecd6928fe69367d4eee2238996cfeae51608004d4bdae0bfe8",
+          }
+          failed = False
+          for name, digest in expected.items():
+              path = pathlib.Path(name)
+              if not path.is_file():
+                  print(f"MISSING {name}")
+                  failed = True
+                  continue
+              got = hashlib.sha256(path.read_bytes()).hexdigest()
+              print(f"{name} sha256={got}")
+              if got != digest:
+                  print(f"FAIL {name}")
+                  failed = True
+              else:
+                  print(f"PASS {name}")
+          if failed:
+              sys.exit(1)
+          print("ALL FOUR HASHES VERIFIED")
+          PY
+      - name: Stage Pages payload only
+        run: |
+          mkdir -p _site
+          cp app.js catalog.js index.html styles.css _site/
+          cp .nojekyll README.md SHA256SUMS.txt _site/
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -1,0 +1,33 @@
+{
+  "source_zip_sha256": "7ec607f09695355d2f69e5dae5ea67874b334fd9df7981557946a13dc4a56bed",
+  "files": [
+    {
+      "name": "app.js",
+      "sha256": "abf77afda2580e05b295eaa8ca3e092307c325abe4d41fbc4df07375c2c8c805",
+      "bytes": 236157,
+      "b64_chars": 314876,
+      "chunks": 27
+    },
+    {
+      "name": "catalog.js",
+      "sha256": "b8417deb2caf3abe074aa0c50c8cf0ed28436ce44277f54038947404ed7df7a1",
+      "bytes": 31741,
+      "b64_chars": 42324,
+      "chunks": 4
+    },
+    {
+      "name": "index.html",
+      "sha256": "99b4942fc3770c99db6ec7457b15278b278f508180014ce94b42a772acb96256",
+      "bytes": 2378,
+      "b64_chars": 3172,
+      "chunks": 1
+    },
+    {
+      "name": "styles.css",
+      "sha256": "0fa1b63b171620ecd6928fe69367d4eee2238996cfeae51608004d4bdae0bfe8",
+      "bytes": 30101,
+      "b64_chars": 40136,
+      "chunks": 4
+    }
+  ]
+}

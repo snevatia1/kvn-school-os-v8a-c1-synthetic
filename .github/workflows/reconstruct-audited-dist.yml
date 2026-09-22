@@ -1,0 +1,82 @@
+name: Reconstruct audited dist
+on:
+  push:
+    paths:
+      - ".staging/**"
+      - ".github/workflows/reconstruct-audited-dist.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: reconstruct-pages
+  cancel-in-progress: true
+jobs:
+  reconstruct-verify-publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Concatenate, decode and verify SHA-256
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib, sys
+          root = pathlib.Path(".")
+          man = json.loads((root/".staging/MANIFEST.json").read_text())
+          expected = {
+            "app.js": "abf77afda2580e05b295eaa8ca3e092307c325abe4d41fbc4df07375c2c8c805",
+            "catalog.js": "b8417deb2caf3abe074aa0c50c8cf0ed28436ce44277f54038947404ed7df7a1",
+            "index.html": "99b4942fc3770c99db6ec7457b15278b278f508180014ce94b42a772acb96256",
+            "styles.css": "0fa1b63b171620ecd6928fe69367d4eee2238996cfeae51608004d4bdae0bfe8",
+          }
+          failed = False
+          for item in man["files"]:
+              name = item["name"]
+              folder = root/".staging"/name
+              parts = sorted(folder.glob("*.b64"))
+              if len(parts) != item["chunks"]:
+                  print(f"FAIL {name} chunk count {len(parts)} != {item['chunks']}")
+                  failed = True
+                  continue
+              b64 = "".join(p.read_text(encoding="ascii").strip() for p in parts)
+              raw = base64.b64decode(b64)
+              digest = hashlib.sha256(raw).hexdigest()
+              print(f"{name} bytes={len(raw)} sha256={digest}")
+              if digest != expected[name] or digest != item["sha256"]:
+                  print(f"FAIL {name} hash mismatch")
+                  failed = True
+                  continue
+              (root/name).write_bytes(raw)
+              print(f"PASS {name}")
+          if failed:
+              sys.exit(1)
+          print("ALL FOUR HASHES VERIFIED")
+          PY
+      - name: Commit reconstructed files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js catalog.js index.html styles.css
+          if git diff --cached --quiet; then
+            echo "No reconstructed-file changes"
+          else
+            git commit -m "Reconstruct exact audited v8a-c1 dist after SHA-256 verify. Synthetic Study App — No Live Data."
+            git push origin HEAD:main
+          fi
+      - name: Stage Pages payload only
+        run: |
+          mkdir -p _site
+          cp app.js catalog.js index.html styles.css .nojekyll README.md SHA256SUMS.txt _site/
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
